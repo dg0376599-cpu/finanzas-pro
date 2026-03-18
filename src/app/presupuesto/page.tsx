@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, CalendarDays, CheckCircle2, Circle, ArrowRight } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { getBudgetItems, saveBudgetItem, updateBudgetItem, deleteBudgetItem, saveExpense, getCurrentMonth, formatCurrency, formatMonth } from '@/lib/store';
+import { getBudgetItems, saveBudgetItem, updateBudgetItem, deleteBudgetItem, saveExpense } from '@/lib/db';
+import { getCurrentMonth, formatCurrency, formatMonth } from '@/lib/store';
 import { BudgetItem } from '@/types';
 import { useCurrency } from '@/context/CurrencyContext';
 import { playSuccess, playDelete, playClick } from '@/lib/sounds';
@@ -20,13 +21,13 @@ export default function PresupuestoPage() {
   const [form, setForm] = useState({ description: '', category: 'Alimentación' });
   const { fmtBs, usdToBs, rate } = useCurrency();
 
-  const load = () => setItems(getBudgetItems().filter((b) => b.month === selectedMonth));
+  const load = async () => setItems(await getBudgetItems(selectedMonth));
   useEffect(() => { load(); }, [selectedMonth]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.description || !amountUSD) return;
-    saveBudgetItem({ id: uuidv4(), ...form, estimatedAmount: amountUSD, month: selectedMonth, spent: false });
+    await saveBudgetItem({ ...form, estimatedAmount: amountUSD, month: selectedMonth, spent: false });
     setForm({ description: '', category: 'Alimentación' });
     setAmountUSD(0);
     setShowForm(false);
@@ -34,19 +35,19 @@ export default function PresupuestoPage() {
     playSuccess();
   };
 
-  const handleToggleSpent = (item: BudgetItem) => {
+  const handleToggleSpent = async (item: BudgetItem) => {
     if (!item.spent) {
-      updateBudgetItem(item.id, { spent: true });
-      saveExpense({ id: uuidv4(), description: item.description, amount: item.estimatedAmount, category: item.category, date: new Date().toISOString().split('T')[0], month: item.month });
+      await updateBudgetItem(item.id, { spent: true });
+      await saveExpense({ description: item.description, amount: item.estimatedAmount, category: item.category, date: new Date().toISOString().split('T')[0], month: item.month });
       playSuccess();
     } else {
-      updateBudgetItem(item.id, { spent: false });
+      await updateBudgetItem(item.id, { spent: false });
       playClick();
     }
     load();
   };
 
-  const handleDelete = (id: string) => { deleteBudgetItem(id); load(); playDelete(); };
+  const handleDelete = async (id: string) => { await deleteBudgetItem(id); load(); playDelete(); };
 
   const months: string[] = [];
   const now = new Date();
@@ -63,38 +64,30 @@ export default function PresupuestoPage() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white mb-1">Presupuesto</h1>
           <p style={{ color: 'rgba(232,234,246,0.45)' }} className="capitalize">{formatMonth(selectedMonth)}</p>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={() => setShowForm(!showForm)}
           className="btn-glow flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-semibold text-sm"
-          style={{ background: 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)', boxShadow: '0 4px 20px rgba(246,211,101,0.3)' }}
-        >
-          <Plus className="w-4 h-4" />
-          Planificar Gasto
+          style={{ background: 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)', boxShadow: '0 4px 20px rgba(246,211,101,0.3)' }}>
+          <Plus className="w-4 h-4" /> Planificar Gasto
         </motion.button>
       </motion.div>
 
-      {/* Month Filter */}
       <div className="flex gap-2 flex-wrap">
         {months.map((m) => (
-          <button key={m} onClick={() => setSelectedMonth(m)}
-            className="px-4 py-2 rounded-xl text-sm font-medium transition-all"
+          <button key={m} onClick={() => setSelectedMonth(m)} className="px-4 py-2 rounded-xl text-sm font-medium transition-all"
             style={selectedMonth === m
               ? { background: 'linear-gradient(135deg, rgba(246,211,101,0.2), rgba(253,160,133,0.15))', border: '1px solid rgba(246,211,101,0.35)', color: 'white' }
-              : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(232,234,246,0.4)' }}
-          >
+              : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(232,234,246,0.4)' }}>
             {formatMonth(m)}
           </button>
         ))}
       </div>
 
-      {/* Stats Row */}
       <div className="grid grid-cols-3 gap-4">
         {[
           { label: 'Total Planificado', val: totalEstimated, color: 'text-yellow-400', border: 'rgba(246,211,101,0.2)' },
@@ -110,7 +103,6 @@ export default function PresupuestoPage() {
         ))}
       </div>
 
-      {/* Progress Bar */}
       {items.length > 0 && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card p-5">
           <div className="flex justify-between mb-3">
@@ -118,13 +110,9 @@ export default function PresupuestoPage() {
             <span className="text-sm font-semibold text-yellow-400">{progress.toFixed(0)}%</span>
           </div>
           <div className="w-full h-3 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${Math.min(progress, 100)}%` }}
-              transition={{ duration: 0.9, delay: 0.2, ease: 'easeOut' }}
-              className="h-full rounded-full"
-              style={{ background: 'linear-gradient(90deg, #f6d365, #fda085)', boxShadow: '0 0 12px rgba(246,211,101,0.4)' }}
-            />
+            <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(progress, 100)}%` }}
+              transition={{ duration: 0.9, delay: 0.2, ease: 'easeOut' }} className="h-full rounded-full"
+              style={{ background: 'linear-gradient(90deg, #f6d365, #fda085)', boxShadow: '0 0 12px rgba(246,211,101,0.4)' }} />
           </div>
           <div className="flex justify-between mt-2">
             <span className="text-xs" style={{ color: 'rgba(232,234,246,0.38)' }}>{spent.length} ejecutados</span>
@@ -133,18 +121,14 @@ export default function PresupuestoPage() {
         </motion.div>
       )}
 
-      {/* Form */}
       <AnimatePresence>
         {showForm && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-            className="glass-card overflow-hidden"
-            style={{ border: '1px solid rgba(246,211,101,0.25)' }}
-          >
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+            className="glass-card overflow-hidden" style={{ border: '1px solid rgba(246,211,101,0.25)' }}>
             <form onSubmit={handleSubmit} className="p-6">
               <h3 className="text-lg font-semibold text-white mb-2">Agregar al Presupuesto</h3>
               <p className="text-xs mb-5" style={{ color: 'rgba(232,234,246,0.38)' }}>
-                Gastos <strong className="text-yellow-400">estimados</strong>. Cuando los ejecutes, se registran en Gastos automáticamente.
+                Gastos <strong className="text-yellow-400">estimados</strong>. Al ejecutarlos se registran en Gastos automáticamente.
               </p>
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
@@ -170,8 +154,7 @@ export default function PresupuestoPage() {
                   Agregar al Plan
                 </motion.button>
                 <button type="button" onClick={() => setShowForm(false)}
-                  className="px-6 py-2.5 rounded-xl text-sm transition-colors"
-                  style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(232,234,246,0.5)' }}>
+                  className="px-6 py-2.5 rounded-xl text-sm" style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(232,234,246,0.5)' }}>
                   Cancelar
                 </button>
               </div>
@@ -180,28 +163,20 @@ export default function PresupuestoPage() {
         )}
       </AnimatePresence>
 
-      {/* Pending Items */}
       {pending.length > 0 && (
         <div className="glass-card overflow-hidden">
           <div className="p-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <h2 className="font-semibold text-white flex items-center gap-2">
-              <Circle className="w-4 h-4 text-yellow-400" />
-              Por Ejecutar ({pending.length})
+              <Circle className="w-4 h-4 text-yellow-400" /> Por Ejecutar ({pending.length})
             </h2>
-            <p className="text-xs mt-1" style={{ color: 'rgba(232,234,246,0.38)' }}>
-              Haz clic en el círculo cuando hayas realizado el gasto.
-            </p>
           </div>
           <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
             <AnimatePresence>
               {pending.map((item, i) => (
-                <motion.div key={item.id}
-                  initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ delay: i * 0.04 }}
-                  className="flex items-center gap-4 p-5 group transition-colors"
-                >
+                <motion.div key={item.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ delay: i * 0.04 }} className="flex items-center gap-4 p-5 group">
                   <motion.button whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }} onClick={() => handleToggleSpent(item)} className="shrink-0">
-                    <Circle className="w-6 h-6 transition-colors" style={{ color: 'rgba(246,211,101,0.45)' }} />
+                    <Circle className="w-6 h-6" style={{ color: 'rgba(246,211,101,0.45)' }} />
                   </motion.button>
                   <div className="flex-1">
                     <p className="font-medium text-white">{item.description}</p>
@@ -211,10 +186,8 @@ export default function PresupuestoPage() {
                     <div className="text-right">
                       <p className="font-bold text-yellow-400">{formatCurrency(item.estimatedAmount)}</p>
                       {rate && <p className="text-xs" style={{ color: 'rgba(246,211,101,0.5)' }}>{fmtBs(usdToBs(item.estimatedAmount))}</p>}
-                      <p className="text-xs" style={{ color: 'rgba(232,234,246,0.28)' }}>estimado</p>
                     </div>
-                    <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-                      onClick={() => handleDelete(item.id)}
+                    <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleDelete(item.id)}
                       className="opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 rounded-lg flex items-center justify-center"
                       style={{ background: 'rgba(250,112,154,0.12)' }}>
                       <Trash2 className="w-4 h-4 text-pink-400" />
@@ -227,13 +200,11 @@ export default function PresupuestoPage() {
         </div>
       )}
 
-      {/* Spent Items */}
       {spent.length > 0 && (
         <div className="glass-card overflow-hidden">
           <div className="p-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <h2 className="font-semibold text-white flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              Ejecutados ({spent.length})
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Ejecutados ({spent.length})
               <span className="ml-auto text-xs flex items-center gap-1" style={{ color: 'rgba(232,234,246,0.35)' }}>
                 <ArrowRight className="w-3 h-3" /> Registrado en Gastos
               </span>
@@ -253,7 +224,6 @@ export default function PresupuestoPage() {
                 <div className="text-right">
                   <p className="font-bold text-emerald-400">{formatCurrency(item.estimatedAmount)}</p>
                   {rate && <p className="text-xs" style={{ color: 'rgba(246,211,101,0.45)' }}>{fmtBs(usdToBs(item.estimatedAmount))}</p>}
-                  <p className="text-xs" style={{ color: 'rgba(232,234,246,0.28)' }}>ejecutado</p>
                 </div>
               </motion.div>
             ))}
@@ -261,12 +231,10 @@ export default function PresupuestoPage() {
         </div>
       )}
 
-      {/* Empty State */}
       {items.length === 0 && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card p-12 text-center">
           <CalendarDays className="w-12 h-12 mx-auto mb-3 opacity-15" />
           <p style={{ color: 'rgba(232,234,246,0.28)' }}>No hay presupuesto planificado para este mes</p>
-          <p className="text-sm mt-2" style={{ color: 'rgba(232,234,246,0.18)' }}>Usa el botón "Planificar Gasto" para comenzar</p>
         </motion.div>
       )}
     </div>

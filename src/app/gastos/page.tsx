@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, TrendingDown } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
-import { getExpenses, saveExpense, deleteExpense, getCurrentMonth, formatCurrency, formatMonth } from '@/lib/store';
+import { getExpenses, saveExpense, deleteExpense } from '@/lib/db';
+import { getCurrentMonth, formatCurrency, formatMonth } from '@/lib/store';
 import { Expense } from '@/types';
 import { useCurrency } from '@/context/CurrencyContext';
 import { playSuccess, playDelete } from '@/lib/sounds';
@@ -26,13 +26,13 @@ export default function GastosPage() {
   const [form, setForm] = useState({ description: '', category: 'Alimentación', date: new Date().toISOString().split('T')[0] });
   const { fmtBs, usdToBs, rate } = useCurrency();
 
-  const load = () => setExpenses(getExpenses().filter((e) => e.month === selectedMonth));
+  const load = async () => setExpenses(await getExpenses(selectedMonth));
   useEffect(() => { load(); }, [selectedMonth]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.description || !amountUSD) return;
-    saveExpense({ id: uuidv4(), ...form, amount: amountUSD, month: selectedMonth });
+    await saveExpense({ ...form, amount: amountUSD, month: selectedMonth });
     setForm({ description: '', category: 'Alimentación', date: new Date().toISOString().split('T')[0] });
     setAmountUSD(0);
     setShowForm(false);
@@ -40,7 +40,7 @@ export default function GastosPage() {
     playSuccess();
   };
 
-  const handleDelete = (id: string) => { deleteExpense(id); load(); playDelete(); };
+  const handleDelete = async (id: string) => { await deleteExpense(id); load(); playDelete(); };
 
   const months: string[] = [];
   const now = new Date();
@@ -54,41 +54,32 @@ export default function GastosPage() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white mb-1">Gastos</h1>
           <p style={{ color: 'rgba(232,234,246,0.45)' }} className="capitalize">{formatMonth(selectedMonth)}</p>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={() => setShowForm(!showForm)}
           className="btn-glow flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-semibold text-sm"
-          style={{ background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', boxShadow: '0 4px 20px rgba(250,112,154,0.3)' }}
-        >
-          <Plus className="w-4 h-4" />
-          Nuevo Gasto
+          style={{ background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', boxShadow: '0 4px 20px rgba(250,112,154,0.3)' }}>
+          <Plus className="w-4 h-4" /> Nuevo Gasto
         </motion.button>
       </motion.div>
 
-      {/* Month Filter */}
       <div className="flex gap-2 flex-wrap">
         {months.map((m) => (
-          <button key={m} onClick={() => setSelectedMonth(m)}
-            className="px-4 py-2 rounded-xl text-sm font-medium transition-all"
+          <button key={m} onClick={() => setSelectedMonth(m)} className="px-4 py-2 rounded-xl text-sm font-medium transition-all"
             style={selectedMonth === m
               ? { background: 'linear-gradient(135deg, rgba(250,112,154,0.2), rgba(254,225,64,0.12))', border: '1px solid rgba(250,112,154,0.35)', color: 'white' }
-              : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(232,234,246,0.4)' }}
-          >
+              : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(232,234,246,0.4)' }}>
             {formatMonth(m)}
           </button>
         ))}
       </div>
 
-      {/* Total Card */}
       <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}
-        className="glass-card p-6 flex items-center justify-between"
-        style={{ border: '1px solid rgba(250,112,154,0.2)' }}>
+        className="glass-card p-6 flex items-center justify-between" style={{ border: '1px solid rgba(250,112,154,0.2)' }}>
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(250,112,154,0.12)', boxShadow: '0 4px 20px rgba(250,112,154,0.15)' }}>
             <TrendingDown className="w-7 h-7 text-pink-400" />
@@ -102,14 +93,10 @@ export default function GastosPage() {
         <p className="text-sm" style={{ color: 'rgba(232,234,246,0.35)' }}>{expenses.length} registros</p>
       </motion.div>
 
-      {/* Form */}
       <AnimatePresence>
         {showForm && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-            className="glass-card overflow-hidden"
-            style={{ border: '1px solid rgba(250,112,154,0.25)' }}
-          >
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+            className="glass-card overflow-hidden" style={{ border: '1px solid rgba(250,112,154,0.25)' }}>
             <form onSubmit={handleSubmit} className="p-6">
               <h3 className="text-lg font-semibold text-white mb-5">Registrar Gasto</h3>
               <div className="grid grid-cols-2 gap-4">
@@ -140,8 +127,7 @@ export default function GastosPage() {
                   Guardar Gasto
                 </motion.button>
                 <button type="button" onClick={() => setShowForm(false)}
-                  className="px-6 py-2.5 rounded-xl text-sm transition-colors"
-                  style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(232,234,246,0.5)' }}>
+                  className="px-6 py-2.5 rounded-xl text-sm" style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(232,234,246,0.5)' }}>
                   Cancelar
                 </button>
               </div>
@@ -150,21 +136,17 @@ export default function GastosPage() {
         )}
       </AnimatePresence>
 
-      {/* Category Filter Chips */}
       <div className="flex gap-2 flex-wrap">
         {['Todos', ...EXPENSE_CATEGORIES].map((cat) => (
-          <button key={cat} onClick={() => setFilterCat(cat)}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+          <button key={cat} onClick={() => setFilterCat(cat)} className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
             style={filterCat === cat
               ? { background: CATEGORY_COLORS[cat] ? `${CATEGORY_COLORS[cat]}28` : 'rgba(102,126,234,0.2)', border: `1px solid ${CATEGORY_COLORS[cat] || '#667eea'}50`, color: CATEGORY_COLORS[cat] || '#667eea' }
-              : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(232,234,246,0.38)' }}
-          >
+              : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(232,234,246,0.38)' }}>
             {cat} {cat !== 'Todos' && expenses.filter(e => e.category === cat).length > 0 && `(${expenses.filter(e => e.category === cat).length})`}
           </button>
         ))}
       </div>
 
-      {/* List */}
       <div className="glass-card overflow-hidden">
         <div className="p-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <h2 className="font-semibold text-white">{filterCat === 'Todos' ? 'Todos los Gastos' : filterCat}</h2>
@@ -178,13 +160,10 @@ export default function GastosPage() {
           <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
             <AnimatePresence>
               {filtered.map((expense, i) => (
-                <motion.div key={expense.id}
-                  initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
-                  transition={{ delay: i * 0.04 }}
-                  className="flex items-center justify-between p-5 transition-colors group"
-                >
+                <motion.div key={expense.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
+                  transition={{ delay: i * 0.04 }} className="flex items-center justify-between p-5 group">
                   <div className="flex items-center gap-4">
-                    <div className="w-3 h-10 rounded-full flex-shrink-0"
+                    <div className="w-3 h-10 rounded-full shrink-0"
                       style={{ background: CATEGORY_COLORS[expense.category] || '#667eea', boxShadow: `0 0 10px ${CATEGORY_COLORS[expense.category] || '#667eea'}60` }} />
                     <div>
                       <p className="font-medium text-white">{expense.description}</p>

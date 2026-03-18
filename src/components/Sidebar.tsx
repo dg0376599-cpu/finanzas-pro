@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, TrendingUp, TrendingDown, CalendarDays, Wallet, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, TrendingDown, CalendarDays, Wallet, RefreshCw, LogOut } from 'lucide-react';
 import { useCurrency } from '@/context/CurrencyContext';
+import { useAuth } from '@/context/AuthContext';
 
 const navItems = [
   { href: '/',             label: 'Dashboard',   icon: LayoutDashboard, color: '#667eea' },
@@ -16,6 +17,7 @@ const navItems = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { rate, loading, lastUpdated, refresh } = useCurrency();
+  const { user, signOut } = useAuth();
 
   const updatedAgo = () => {
     if (!lastUpdated) return '';
@@ -31,13 +33,15 @@ export default function Sidebar() {
     WebkitBackdropFilter: 'blur(28px)',
   };
 
+  const avatar = user?.user_metadata?.avatar_url;
+  const name = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario';
+
   return (
     <>
       {/* ── Desktop Sidebar ── */}
-      <aside
-        className="hidden md:flex fixed left-0 top-0 h-full w-64 flex-col z-50"
-        style={{ ...sidebarStyle, borderRight: '1px solid rgba(255,255,255,0.06)' }}
-      >
+      <aside className="hidden md:flex fixed left-0 top-0 h-full w-64 flex-col z-50"
+        style={{ ...sidebarStyle, borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+
         {/* Logo */}
         <div className="p-6" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3">
@@ -52,7 +56,7 @@ export default function Sidebar() {
           </motion.div>
         </div>
 
-        {/* BCV Rate Widget */}
+        {/* BCV Rate */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
           className="mx-4 mt-4 p-3 rounded-2xl"
           style={{ background: 'linear-gradient(135deg, rgba(246,211,101,0.08), rgba(253,160,133,0.08))', border: '1px solid rgba(246,211,101,0.2)' }}>
@@ -91,10 +95,8 @@ export default function Sidebar() {
                       : { color: 'rgba(232,234,246,0.45)' }}>
                     <Icon className="w-5 h-5 transition-all duration-200 group-hover:scale-110" style={{ color: isActive ? item.color : undefined }} />
                     <span className="font-medium text-sm">{item.label}</span>
-                    {isActive && (
-                      <motion.div layoutId="activeIndicator" className="ml-auto w-1.5 h-1.5 rounded-full"
-                        style={{ background: item.color, boxShadow: `0 0 8px ${item.color}` }} />
-                    )}
+                    {isActive && <motion.div layoutId="activeIndicator" className="ml-auto w-1.5 h-1.5 rounded-full"
+                      style={{ background: item.color, boxShadow: `0 0 8px ${item.color}` }} />}
                   </div>
                 </Link>
               </motion.div>
@@ -102,17 +104,30 @@ export default function Sidebar() {
           })}
         </nav>
 
-        {/* BCV mini rate footer */}
+        {/* User + Logout */}
         <div className="p-4" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-          <p className="text-xs text-center" style={{ color: 'rgba(232,234,246,0.2)' }}>© 2025 FinanzasPro</p>
+          <div className="flex items-center gap-3">
+            {avatar
+              ? <img src={avatar} alt={name} className="w-8 h-8 rounded-full" />
+              : <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                  style={{ background: 'linear-gradient(135deg, #667eea, #764ba2)' }}>
+                  {name[0].toUpperCase()}
+                </div>
+            }
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-white truncate">{name}</p>
+              <p className="text-xs truncate" style={{ color: 'rgba(232,234,246,0.35)' }}>{user?.email}</p>
+            </div>
+            <button onClick={signOut} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors" title="Cerrar sesión">
+              <LogOut className="w-4 h-4" style={{ color: 'rgba(232,234,246,0.4)' }} />
+            </button>
+          </div>
         </div>
       </aside>
 
       {/* ── Mobile Top Bar ── */}
-      <header
-        className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3"
-        style={{ ...sidebarStyle, borderBottom: '1px solid rgba(255,255,255,0.06)' }}
-      >
+      <header className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3"
+        style={{ ...sidebarStyle, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center"
             style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
@@ -120,23 +135,28 @@ export default function Sidebar() {
           </div>
           <span className="font-bold text-white text-base">FinanzasPro</span>
         </div>
-
-        {/* BCV rate pill */}
-        {rate && (
-          <button onClick={refresh}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
-            style={{ background: 'rgba(246,211,101,0.12)', border: '1px solid rgba(246,211,101,0.25)', color: 'rgba(246,211,101,0.9)' }}>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot" />
-            Bs. {rate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {rate && (
+            <button onClick={refresh}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+              style={{ background: 'rgba(246,211,101,0.12)', border: '1px solid rgba(246,211,101,0.25)', color: 'rgba(246,211,101,0.9)' }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot" />
+              Bs. {rate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </button>
+          )}
+          {avatar
+            ? <img src={avatar} alt={name} className="w-7 h-7 rounded-full" onClick={signOut} title="Cerrar sesión" />
+            : <button onClick={signOut} className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                style={{ background: 'linear-gradient(135deg, #667eea, #764ba2)' }}>
+                {name[0].toUpperCase()}
+              </button>
+          }
+        </div>
       </header>
 
       {/* ── Mobile Bottom Nav ── */}
-      <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2 py-2"
-        style={{ ...sidebarStyle, borderTop: '1px solid rgba(255,255,255,0.07)' }}
-      >
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2 py-2"
+        style={{ ...sidebarStyle, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -144,8 +164,8 @@ export default function Sidebar() {
             <Link key={item.href} href={item.href} className="flex-1">
               <div className="flex flex-col items-center gap-1 py-2 rounded-xl transition-all"
                 style={isActive ? { background: `${item.color}18` } : {}}>
-                <Icon className="w-5 h-5 transition-all" style={{ color: isActive ? item.color : 'rgba(232,234,246,0.38)' }} />
-                <span className="text-xs font-medium" style={{ color: isActive ? item.color : 'rgba(232,234,246,0.38)', fontSize: '10px' }}>
+                <Icon className="w-5 h-5" style={{ color: isActive ? item.color : 'rgba(232,234,246,0.38)' }} />
+                <span style={{ color: isActive ? item.color : 'rgba(232,234,246,0.38)', fontSize: '10px' }} className="font-medium">
                   {item.label}
                 </span>
               </div>
