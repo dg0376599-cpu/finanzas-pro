@@ -33,7 +33,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ServiceWorkerRegister />
           <div className="flex min-h-screen">
             <Sidebar />
-            <main className="flex-1 ml-64 p-8 min-h-screen">
+            {/* desktop: ml-64 for sidebar | mobile: mt-14 top bar + mb-20 bottom nav */}
+            <main className="flex-1 md:ml-64 mt-14 md:mt-0 mb-20 md:mb-0 p-4 md:p-8 min-h-screen w-full">
               {children}
             </main>
           </div>
