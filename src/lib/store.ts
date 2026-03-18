@@ -25,69 +25,27 @@ function setItem<T>(key: string, data: T[]) {
 }
 
 // --- INCOMES ---
-export function getIncomes(): Income[] {
-  return getItem<Income>(KEYS.incomes);
-}
-
-export function saveIncome(income: Income) {
-  const all = getIncomes();
-  setItem(KEYS.incomes, [...all, income]);
-}
-
-export function deleteIncome(id: string) {
-  const all = getIncomes().filter((i) => i.id !== id);
-  setItem(KEYS.incomes, all);
-}
+export function getIncomes(): Income[] { return getItem<Income>(KEYS.incomes); }
+export function saveIncome(income: Income) { setItem(KEYS.incomes, [...getIncomes(), income]); }
+export function deleteIncome(id: string) { setItem(KEYS.incomes, getIncomes().filter((i) => i.id !== id)); }
 
 // --- EXPENSES ---
-export function getExpenses(): Expense[] {
-  return getItem<Expense>(KEYS.expenses);
-}
-
-export function saveExpense(expense: Expense) {
-  const all = getExpenses();
-  setItem(KEYS.expenses, [...all, expense]);
-}
-
-export function deleteExpense(id: string) {
-  const all = getExpenses().filter((e) => e.id !== id);
-  setItem(KEYS.expenses, all);
-}
+export function getExpenses(): Expense[] { return getItem<Expense>(KEYS.expenses); }
+export function saveExpense(expense: Expense) { setItem(KEYS.expenses, [...getExpenses(), expense]); }
+export function deleteExpense(id: string) { setItem(KEYS.expenses, getExpenses().filter((e) => e.id !== id)); }
 
 // --- BUDGET ---
-export function getBudgetItems(): BudgetItem[] {
-  return getItem<BudgetItem>(KEYS.budget);
-}
-
-export function saveBudgetItem(item: BudgetItem) {
-  const all = getBudgetItems();
-  setItem(KEYS.budget, [...all, item]);
-}
-
+export function getBudgetItems(): BudgetItem[] { return getItem<BudgetItem>(KEYS.budget); }
+export function saveBudgetItem(item: BudgetItem) { setItem(KEYS.budget, [...getBudgetItems(), item]); }
 export function updateBudgetItem(id: string, updates: Partial<BudgetItem>) {
-  const all = getBudgetItems().map((b) => (b.id === id ? { ...b, ...updates } : b));
-  setItem(KEYS.budget, all);
+  setItem(KEYS.budget, getBudgetItems().map((b) => (b.id === id ? { ...b, ...updates } : b)));
 }
-
-export function deleteBudgetItem(id: string) {
-  const all = getBudgetItems().filter((b) => b.id !== id);
-  setItem(KEYS.budget, all);
-}
+export function deleteBudgetItem(id: string) { setItem(KEYS.budget, getBudgetItems().filter((b) => b.id !== id)); }
 
 // --- PROSPECTIVE EXPENSES ---
-export function getProspectiveExpenses(): ProspectiveExpense[] {
-  return getItem<ProspectiveExpense>(KEYS.prospective);
-}
-
-export function saveProspectiveExpense(item: ProspectiveExpense) {
-  const all = getProspectiveExpenses();
-  setItem(KEYS.prospective, [...all, item]);
-}
-
-export function deleteProspectiveExpense(id: string) {
-  const all = getProspectiveExpenses().filter((p) => p.id !== id);
-  setItem(KEYS.prospective, all);
-}
+export function getProspectiveExpenses(): ProspectiveExpense[] { return getItem<ProspectiveExpense>(KEYS.prospective); }
+export function saveProspectiveExpense(item: ProspectiveExpense) { setItem(KEYS.prospective, [...getProspectiveExpenses(), item]); }
+export function deleteProspectiveExpense(id: string) { setItem(KEYS.prospective, getProspectiveExpenses().filter((p) => p.id !== id)); }
 
 // --- UTILS ---
 export function getCurrentMonth(): string {
@@ -95,16 +53,17 @@ export function getCurrentMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// Amounts are stored in USD
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('es-CO', {
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
+    currency: 'USD',
+    minimumFractionDigits: 2,
   }).format(amount);
 }
 
 export function formatMonth(month: string): string {
   const [year, m] = month.split('-');
   const date = new Date(Number(year), Number(m) - 1);
-  return date.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+  return date.toLocaleDateString('es-VE', { month: 'long', year: 'numeric' });
 }
